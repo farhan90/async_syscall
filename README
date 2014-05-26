@@ -1,3 +1,6 @@
+This is an academic project to create a simple linux asynchronous system call
+which can perform encryption/decryption and checksum calculations on files.
+
 Instructions to run the code:
 	- make clean
 	- make

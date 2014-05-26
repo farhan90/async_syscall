@@ -1,0 +1,106 @@
+Instructions to run the code:
+	- make clean
+	- make
+	- sh install_module.sh
+	- run any user-progress provided
+
+Mechanisms:
+	We have implemented this hw using the standard linux crypto api. We are using the
+	concept of work_queues and work_structs to manage producer and consumer threads. We have separate 
+	linked lists that store data. So, a producer can queue the actual data in the linked list and 
+	consumer can come and perform that action and remove that data from the linked list. Here is the 
+	functionality that we have implemented:
+	- Main queueing machenism between producer and consumer.
+	- Managing the queue with locks (we are using spinlock).
+	- We also throttle the heavy writers. Eg: when a user process submits way too many jobs or if our
+		queue is full. Then we actually throttle that user process and put it to sleep. We make sure 
+		we don't lose any data provided by that user process. And, when space becomes available in the 
+		queue, we send that process SIGCONT signal to continue it's work. So, we have two linked lists now: the main linked list and the backup sleeping processes linked list. Both are made thread
+		safe. 
+	- We alert the user by the means of signals. User can submit us a job with a job_number and we 
+		store that information in our queue. So, when a consumer is done with a job and it wants to 
+		alert the user, it send the success/error number with the job number too. This way, user 
+		knows which job number is finished and what's the error status. 
+
+User Actions:
+	User can submit the following jobs to our system call:
+	- Job for encryption.
+	- Job for decryption.
+	- Job for checksum.
+	- To remove a job.
+	- To list all the jobs in user-land.
+	we use the same interface between user and kernel when submitting any of the following from user 
+	to our system call. This way user has a clean interface to the system call, no matter what they 
+	are trying to do. Our module takes care of parsing a user-request and performing that action.
+
+Enrypttion/Decryption:
+	./sub_one_wait -e -p "password" hello.txt out (to encrypt)
+	./sub_one_wait -d -p "password" out hello.txt (to decrypt)
+	<executable> <en/dn flags> <password flag> <password> <input file> <output file>
+
+	We support a huge number of algorithms when it comes to encryption. Here is a list:
+	#define CBC_AES "cbc(aes)"
+	#define CTR_AES "ctr(aes)"
+	#define XTS_AES "xts(aes)"
+	#define ECB_AES "ecb(aes)"
+	#define ECB_ARC4 "ecb(arc4)"
+	#define PCBC_FCRYPT "pcbc(fcrypt)"
+	#define ECB_DES3_EDE "ecb(des3_ede)"
+	#define CBC_DES3_EDE "cbc(des3_ede)"
+	#define ECB_TWOFISH "ecb(twofish)"
+	#define CBC_TWOFISH "cbc(twofish)"
+	#define CTR_TWOFISH "ctr(twofish)"
+	#define ECB_BLOWFISH "ecb(blowfish)"
+	#define CBC_BLOWFISH "cbc(blowfish)"
+	#define CTR_BLOWFISH "ctr(blowfish)"
+	#define CBC_DES "cbs(des)"
+	#define ECB_DES "ecb(des)"
+	#define ECB_CAMELLIA "ecb(camellia)"
+	#define CBC_CAMELLIA "cbc(camellia)"
+	#define SALSA20 "salsa20"
+
+	User can pick any of them and we will use that algorithm while performing encryption. These are
+	provided in our header file "async_data.h".
+
+Checksum:
+	./sub_one_wait -c hello.txt out
+	<executable> <checksum flag> <input file> <output file>
+
+	We support the following checksum algorithms:
+	#define MD_5 "md5"
+	#define MD_4 "md4"
+
+	User can pick any of them and we will use that algorithm while performing checksum. These are
+	provided in our header file "async_data.h".
+
+If user gives us a wrong checksum/encryption algorithm that is not supported in our module or if
+it doesn't exist in the kernel, then we properly handle that error as well. 
+
+PS: we have included our kernel config file in hs3 directory as well. It's name "kernel.config", 
+just in case you guys need it.
+
+
+References:
+	Kernel-user signaling:
+		 http://people.ee.ethz.ch/~arkeller/linux/multi/kernel_user_space_howto-6.html
+
+	checksum:
+		http://stackoverflow.com/questions/3869028/how-to-use-cryptoapi-in-the-linux-kernel-2-6
+		http://lxr.free-electrons.com/source/fs/nfsd/nfs4recover.c#L104
+		http://lxr.free-electrons.com/source/fs/ecryptfs/crypto.c
+		
+
+	Cipher References:
+		http://lxr.fsl.cs.sunysb.edu/linux/source/crypto/tcrypt.c#L998
+
+	Reference code from HW3 from CSE 306. Also taken with professor Zadok.
+
+	Work_queues:
+		http://www.makelinux.net/ldd3/chp-7-sect-6
+
+
+
+
+
+
+
